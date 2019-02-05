@@ -71,6 +71,10 @@ def filter_out_events_by_column_content(dataframe, column, filter):
     is_valid = dataframe[column] != filter
     return dataframe[is_valid]
 
+def filter_events_by_column_content_na(dataframe, column):
+    is_valid = dataframe[column].isna()
+    return dataframe[is_valid]
+
 
 def filter_by_date(dataframe, date_start):
     is_valid = dataframe['game_id'].astype(str).str.startswith(date_start)
@@ -85,6 +89,7 @@ def add_gameTime_column(dataframe):
     for i, row in dataframe.iterrows():
         dataframe.loc[i, 'gameTime'] = (row['period']-1)*20*60 + row['periodTime']
     return dataframe
+
 
 def add_fo_winner_zone(dataframe):
     for i, row in dataframe.iterrows():
@@ -128,8 +133,7 @@ def generate_enhanced_stoppage_data(dataframe, game_id):
                                                                                 'previous_event': first_item,
                                                                                 'previous_event_description': lambda x: "%s" % '; '.join(x)})
 
-    if previous_event_lookup['num_teams_involved'][0] == 2:
-        previous_event_lookup['previous_event_causer'] = 'both'
+    previous_event_lookup.loc[previous_event_lookup['num_teams_involved'] == 2, 'previous_event_causer'] = 'both'
 
     random_game_faceoffs = filter_events_by_column_content(random_game_stop_plays_all, 'event', ['Faceoff'])
     random_game_faceoffs = add_fo_winner_zone(random_game_faceoffs)
@@ -138,8 +142,20 @@ def generate_enhanced_stoppage_data(dataframe, game_id):
 
     # print(previous_event_lookup)
 
+    merge_faceoffs_with_stoppages[['previous_event']] = merge_faceoffs_with_stoppages[['previous_event']].fillna('unknown')
+    merge_faceoffs_with_stoppages['previous_stop_reason'] = merge_faceoffs_with_stoppages['previous_event']
+    merge_faceoffs_with_stoppages['previous_stop_reason'] = merge_faceoffs_with_stoppages[merge_faceoffs_with_stoppages['previous_event'] == 'Stoppage']['previous_event_description']
 
-    print(merge_faceoffs_with_stoppages[1])
+
+    merge_faceoffs_with_stoppages.loc[(merge_faceoffs_with_stoppages['previous_stop_reason'] == 'Offside') & (merge_faceoffs_with_stoppages['fo_winner_zone']=='DEF'), 'fo_winner_zone'] = "NEU-D"
+    merge_faceoffs_with_stoppages.loc[(merge_faceoffs_with_stoppages['previous_stop_reason'] == 'Offside') & (merge_faceoffs_with_stoppages['fo_winner_zone']=='OFF'), 'fo_winner_zone'] = "NEU-O"
+
+
+
+    merge_faceoffs_with_stoppages['previous_event_causer']
+
+    # print(list(merge_faceoffs_with_stoppages))
+    print(merge_faceoffs_with_stoppages['previous_stop_reason'])
 
     return previous_event_lookup
 
